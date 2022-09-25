@@ -1,4 +1,3 @@
-from collections import UserList
 from socket import *
 import pickle
 
