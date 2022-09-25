@@ -1,12 +1,56 @@
-from http import server
 from socket import *
-serverSocket = socket(AF_INET, SOCK_DGRAM)
+import pickle
+import threading
+
+userLists = []
+userFollowers = []
+
+serverSocket = socket(AF_INET, SOCK_DGRAM) # UDP Socket
 serverIP = gethostbyname(gethostname()) #gethostbyname(gethostname()) used for localhost. For other uses put server IP
 serverPort = 28000
-serverAddress = (serverIP,serverPort)
-serverSocket.bind(serverAddress)
-print('The server is ready to receive')
-while True:
-    message, clientAddress = serverSocket.recvfrom(2048)
-    modifiedMessage = message.decode().upper()
-    serverSocket.sendto(modifiedMessage.encode(), clientAddress)
+serverSocket.bind((serverIP,serverPort))
+
+bufferSize = 2024 #amount of bytes to be sent/received
+
+class User():
+    def __init__(self,handle,address):
+        self.handle = handle
+        self.address = address
+
+def serverStart():
+    print("Server Started")
+    while True:
+        clientData, clientAddress = serverSocket.recvfrom(bufferSize)
+        clientData = pickle.loads(clientData)
+        match clientData[0]:
+            case "Register":
+                clientRegister(clientData[1],clientAddress)
+            case "Query Handles":
+                queryHandles(clientAddress)
+            case "Follow":
+                print("Functionallity not implemented yet")
+            case "Drop":
+                print("Functionallity not implemented yet")
+            case "Tweet":
+                print("Functionallity not implemented yet")
+
+def clientRegister(handle, clientAddress):
+    for x in userLists:
+        if x.handle == handle:
+            print("Handle already Exists failed to Registered")
+            message = "Failure"
+            serverSocket.sendto(pickle.dumps(message), clientAddress)
+            return
+    userLists.append(User(handle, clientAddress))
+    print(isinstance(userLists[0],User))
+    print("User has been Registered:", handle, clientAddress)
+    message = "Success"
+    serverSocket.sendto(pickle.dumps(message), clientAddress)
+
+def queryHandles(clientAddress):
+    serverData = []
+    serverData.append(len(userLists))
+    serverData.append(userLists)
+    serverSocket.sendto(pickle.dumps(serverData), clientAddress)
+
+serverStart()
