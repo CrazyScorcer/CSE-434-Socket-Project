@@ -1,40 +1,42 @@
 from socket import *
 import pickle
 
-followedList = []
+clientSocket = socket(AF_INET, SOCK_DGRAM) # UDP Socket
+
+#serverIP = input("Insert Server IP: ") # put in final program
+#serverPort = input("Insert Server Port: ") # put in final program
+
+serverIP = gethostbyname(gethostname()) #gethostbyname(gethostname()) used for localhost. For other uses put server IP
+serverPort = 28000
+
+bufferSize = 2024 #amount of bytes to be sent/received
 
 class User():
     def __init__(self,handle,address):
         self.handle = handle
         self.address = address
 
-clientSocket = socket(AF_INET, SOCK_DGRAM) # UDP Socket
-#serverIP = input("Server IP:") # put in final program
-#serverPort = input("Server Port") # put in final program
-
-serverIP = gethostbyname(gethostname()) #gethostbyname(gethostname()) used for localhost. For other uses put server IP
-serverPort = 28000
-
-bufferSize = 2024 #amount of bytes to be sent/received
 def clientStart():
     userHandle = input("Insert Handle: ")
     while True:
+        #check to see if handle is longer than 15 characters
         while len(userHandle) > 15:
             userHandle = input("Handle too long. Try Again. ")
-        
+        #sends handle to server to register
         clientData = ["Register" , userHandle]
         clientSocket.sendto(pickle.dumps(clientData),(serverIP, serverPort))
         serverData, serverAddress = clientSocket.recvfrom(bufferSize)
-
+        #if the handle doesn't exist, move to ask commands from user
         if (pickle.loads(serverData) == "Success"):
             print(pickle.loads(serverData))
             break
-        
+        #otherwise ask user again for handle
         userHandle = input("Handle Already Exists. Try Again. ")
     while True:
         clientData = []
         userInput = input("Type command: ")
         match userInput:
+            #query the server for handles and returns list of handles currently on the server
             case "Query Handles":
                 clientData.append(userInput)
                 clientSocket.sendto(pickle.dumps(clientData), serverAddress)

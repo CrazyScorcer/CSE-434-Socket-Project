@@ -20,6 +20,7 @@ class User():
 def serverStart():
     print("Server Started")
     while True:
+        #waits for a client to send packet
         clientData, clientAddress = serverSocket.recvfrom(bufferSize)
         clientData = pickle.loads(clientData)
         match clientData[0]:
@@ -33,7 +34,7 @@ def serverStart():
                 print("Functionallity not implemented yet")
             case "Tweet":
                 print("Functionallity not implemented yet")
-
+#checks if handles exists on the server then registers if it doesn't, otherwise send failure to client for new handle
 def clientRegister(handle, clientAddress):
     for x in userLists:
         if x.handle == handle:
@@ -46,7 +47,7 @@ def clientRegister(handle, clientAddress):
     print("User has been Registered:", handle, clientAddress)
     message = "Success"
     serverSocket.sendto(pickle.dumps(message), clientAddress)
-
+#stores the number of users and the lists of current users in a list to send over
 def queryHandles(clientAddress):
     serverData = []
     serverData.append(len(userLists))
