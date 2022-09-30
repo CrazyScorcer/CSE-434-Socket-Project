@@ -1,7 +1,9 @@
 from socket import *
 import pickle
 import threading
-
+#implement userLists object sort
+#implement userLists object sort
+#implement userLists object sort
 class Req:
 	def __init__(self, user, target, reqType):
 		self.user = user
@@ -19,7 +21,7 @@ class User():
         self.address = address
     
 userLists = [] # = registered = ['A', 'B', 'C']
-userFollowers = [] # = followerLists = []
+userFollowers = [] # = userFollowers = []
  
 serverSocket = socket(AF_INET, SOCK_DGRAM)
 serverIP = gethostbyname(getfqdn()) #gethostbyname(gethostname()) used for localhost. For other uses put server IP
@@ -31,7 +33,7 @@ def serverStart():
     print("Server Started")
     while True:
         #waits for a client to send packet
-        clientData, clientAddress = serverSocket.recvfrom(bufferSize)
+        clientData, clientAddress = serverSocket.recvfrom(2048)
         clientData = pickle.loads(clientData)
         match clientData[0]:
             case "Register":
@@ -65,46 +67,48 @@ def queryHandles(clientAddress):
     serverData.append(userLists)
     serverSocket.sendto(pickle.dumps(serverData), clientAddress)
     
-def followHandle(handle):
-    index = registered.index(handle) #works with string, check with object
+def followHandle(req,clientAddress):
+    index = userLists.index(next(x for x in userLists if req.target == x.handle)) 
     try:
-        duplicate = followerLists[index].index(modifiedMessage.user)
+        duplicate = userFollowers[index].index(req.user)
     except ValueError:
-        followerLists[index].append(modifiedMessage.user)
-        followerLists[index].sort()
+        userFollowers[index].append(req.user)
+        userFollowers[index].sort()
         returnMsg = 'SUCCESS'
-    print('after receiving msg ', followerLists) 
+    print('after receiving msg ', userFollowers) 
     if returnMsg != 'SUCCESS':
            returnMsg = 'FAILURE'
     serverSocket.sendto(returnMsg.encode(), clientAddress)
    
-def dropHandle(handle):
-    index = registered.index(handle) #works with string, check with object
-     try:
-        exists = followerLists[index].remove(modifiedMessage.user)
-        followerLists[index].sort()
+def dropHandle(req,clientAddress):
+    index = userLists.index(next(x for x in userLists if req.target == x.handle)) 
+    try:
+        userFollowers[index].remove(req.user)
+        userFollowers[index].sort()
         returnMsg = 'SUCCESS'
 
-     except ValueError:
-         print('not even following that person in the first place')  
-     print('after receiving msg ', followerLists) 
-     if returnMsg != 'SUCCESS':
-            returnMsg = 'FAILURE'
-     serverSocket.sendto(returnMsg.encode(), clientAddress)
+    except ValueError:
+        print('not even following that person in the first place')  
+    print('after receiving msg ', userFollowers) 
+    if returnMsg != 'SUCCESS':
+        returnMsg = 'FAILURE'
+    serverSocket.sendto(returnMsg.encode(), clientAddress)
        
-def exitCode(exitCode):
+def exitCode(exitCode,clientAddress):
     for following in exitCode.follow:
-           index = registered.index(following) #works with string, check with object
-           followerLists[index].remove(exitCode.name)
-           followerLists[index].sort()
-    deleteList = registered.index(exitCode.name)
-    for follower in followerLists[deleteList]:
-        listenAddress = next(x for x in userList if follower == x.handle).address
-        deleteMsg = Req(modifiedMessage.name, follower, 'delete')
+        index = userLists.index(next(x for x in userLists if following == x.handle))
+        userFollowers[index].remove(exitCode.name)
+        userFollowers[index].sort()
+    deleteList = userLists.index(next(x for x in userLists if exitCode.name == x.handle))
+    for follower in userFollowers[deleteList]:
+        listenAddress = next(x for x in userLists if follower == x.handle).address
+        deleteMsg = Req(exitCode.name, follower, 'delete')
         serverSocket.sendto(deleteMsg, listenAddress)
-    followerLists.pop(deleteList)
-    print('after exiting, list is ', followerLists)
+    userFollowers.pop(deleteList)
+    userLists.pop(deleteList)
+    print('after exiting, list is ', userFollowers)
     finalMsg = 'all delete msgs sent'
     serverSocket.sendto(finalMsg.encode(), clientAddress)
-    
+
+
 serverStart()

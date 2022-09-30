@@ -1,6 +1,11 @@
 from socket import *
 import pickle
 import threading
+
+# add commandline parameters to accept user selected ports
+# add commandline parameters to accept user selected ports
+# add commandline parameters to accept user selected ports
+
 class User():
     def __init__(self,handle,address):
         self.handle = handle
@@ -41,7 +46,7 @@ def clientStart():
         #sends handle to server to register
         clientData = ["Register" , userHandle]
         clientSocket.sendto(pickle.dumps(clientData),(serverIP, serverPort))
-        serverData, serverAddress = clientSocket.recvfrom(bufferSize)
+        serverData, serverAddress = clientSocket.recvfrom(2048)
         #if the handle doesn't exist, move to ask commands from user
         if (pickle.loads(serverData) == "Success"):
             print(pickle.loads(serverData))
@@ -56,7 +61,7 @@ def clientStart():
             case "Query Handles":
                 clientData.append(userInput)
                 clientSocket.sendto(pickle.dumps(clientData), serverAddress)
-                serverData, serverAddress = clientSocket.recvfrom(bufferSize)
+                serverData, serverAddress = clientSocket.recvfrom(2048)
                 serverData = pickle.loads(serverData)
                 print("Total Users: ", serverData[0])
                 userList = serverData[1]
@@ -65,7 +70,7 @@ def clientStart():
                 break
             case "Follow":
                 newFollow = input('Please type the name of the person you want to follow: ')
-                msg = Req(name, newFollow, 'follow')
+                msg = Req(userHandle, newFollow, 'follow')
                 message = pickle.dumps(msg)
 
                 try:
@@ -74,13 +79,13 @@ def clientStart():
 
                     following.append(newFollow)
                     following.sort()
-                print(name, ' is following the following ', following)
+                print(userHandle , ' is following the following ', following)
                 clientSocket.sendto(message,(serverIP, serverPort))
                 modifiedMessage, serverAddress = clientSocket.recvfrom(2048)
                 print(modifiedMessage.decode())
             case "Drop":
                 dropReq = input('Please type the name of the person you want to unfollow: ')
-                msg = Req(name, dropReq, 'drop')
+                msg = Req(userHandle , dropReq, 'drop')
                 message = pickle.dumps(msg)
                 try:
                     exists = following.remove(dropReq)
@@ -90,11 +95,11 @@ def clientStart():
                     modifiedMessage, serverAddress = clientSocket.recvfrom(2048)
                     print(modifiedMessage.decode())
                 except ValueError:
-                print('You are not following that person')
+                    print('You are not following that person')
             case "Tweet":
                 print("Functionallity not implemented yet")
             case "Exit":
-                msg = ExitCode(name, following)
+                msg = ExitCode(userHandle , following)
                 message = pickle.dumps(msg)
                 clientSocket.sendto(message, (serverIP, serverPort))
                 finalMsg, serverAddr = clientSocket.recvfrom(2048)
@@ -107,17 +112,15 @@ def listening():
     while True:
         message, serverAddress = listenSocket.recvfrom(2048)
         deleteMsg = pickle.loads(message)
-        print('server sent a msg to ', deleteMsg.follower, ' to go and delete ', deleteMsg.name, ' but not rlly tho bc this is going to just one port but at least the delete msg is correct'
+        print('server sent a msg to ', deleteMsg.follower, ' to go and delete ', deleteMsg.name, ' but not rlly tho bc this is going to just one port but at least the delete msg is correct')
 
 
 clientSocket.close()
-cmdPort = threading.Thread(target=commanding, args=())
+cmdPort = threading.Thread(target=clientStart, args=())
 cmdPort.start()
 
 listeningPort = threading.Thread(target=listening, args=(), daemon=True)
 listeningPort.start()
-
-clientStart()
 
 cmdPort.join()
 listenSocket.close()
