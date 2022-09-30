@@ -2,20 +2,30 @@ from socket import *
 import pickle
 import threading
 
-userLists = []
-userFollowers = []
+class Req:
+	def __init__(self, user, target, reqType):
+		self.user = user
+		self.target = target
+		self.reqType = reqType
 
-serverSocket = socket(AF_INET, SOCK_DGRAM) # UDP Socket
-serverIP = gethostbyname(gethostname()) #gethostbyname(gethostname()) used for localhost. For other uses put server IP
-serverPort = 28000
-serverSocket.bind((serverIP,serverPort))
-
-bufferSize = 2024 #amount of bytes to be sent/received
-
+class ExitCode:
+	def __init__(self, name, follow):
+		self.name = name
+		self.follow = follow
+    
 class User():
     def __init__(self,handle,address):
         self.handle = handle
         self.address = address
+    
+userLists = [] # = registered = ['A', 'B', 'C']
+userFollowers = [] # = followerLists = []
+ 
+serverSocket = socket(AF_INET, SOCK_DGRAM)
+serverIP = gethostbyname(getfqdn()) #gethostbyname(gethostname()) used for localhost. For other uses put server IP
+serverPort = 28000
+serverAddress = (serverIP,serverPort)
+serverSocket.bind(serverAddress)
 
 def serverStart():
     print("Server Started")
@@ -29,11 +39,12 @@ def serverStart():
             case "Query Handles":
                 queryHandles(clientAddress)
             case "Follow":
-                print("Functionallity not implemented yet")
+                followHandle(clientData[1])
             case "Drop":
-                print("Functionallity not implemented yet")
+                dropHandle(clientData[1])
             case "Tweet":
                 print("Functionallity not implemented yet")
+                
 #checks if handles exists on the server then registers if it doesn't, otherwise send failure to client for new handle
 def clientRegister(handle, clientAddress):
     for x in userLists:
@@ -53,5 +64,47 @@ def queryHandles(clientAddress):
     serverData.append(len(userLists))
     serverData.append(userLists)
     serverSocket.sendto(pickle.dumps(serverData), clientAddress)
+    
+def followHandle(handle):
+    index = registered.index(handle) #works with string, check with object
+    try:
+        duplicate = followerLists[index].index(modifiedMessage.user)
+    except ValueError:
+        followerLists[index].append(modifiedMessage.user)
+        followerLists[index].sort()
+        returnMsg = 'SUCCESS'
+    print('after receiving msg ', followerLists) 
+    if returnMsg != 'SUCCESS':
+           returnMsg = 'FAILURE'
+    serverSocket.sendto(returnMsg.encode(), clientAddress)
+   
+def dropHandle(handle):
+    index = registered.index(handle) #works with string, check with object
+     try:
+        exists = followerLists[index].remove(modifiedMessage.user)
+        followerLists[index].sort()
+        returnMsg = 'SUCCESS'
 
+     except ValueError:
+         print('not even following that person in the first place')  
+     print('after receiving msg ', followerLists) 
+     if returnMsg != 'SUCCESS':
+            returnMsg = 'FAILURE'
+     serverSocket.sendto(returnMsg.encode(), clientAddress)
+       
+def exitCode(exitCode):
+    for following in exitCode.follow:
+           index = registered.index(following) #works with string, check with object
+           followerLists[index].remove(exitCode.name)
+           followerLists[index].sort()
+    deleteList = registered.index(exitCode.name)
+    for follower in followerLists[deleteList]:
+        listenAddress = next(x for x in userList if follower == x.handle).address
+        deleteMsg = Req(modifiedMessage.name, follower, 'delete')
+        serverSocket.sendto(deleteMsg, listenAddress)
+    followerLists.pop(deleteList)
+    print('after exiting, list is ', followerLists)
+    finalMsg = 'all delete msgs sent'
+    serverSocket.sendto(finalMsg.encode(), clientAddress)
+    
 serverStart()
