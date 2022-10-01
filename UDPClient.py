@@ -1,11 +1,8 @@
 from socket import *
+from collections import OrderedDict
 import pickle
 import threading
-from collections import OrderedDict
-
-# add commandline parameters to accept user selected ports
-# add commandline parameters to accept user selected ports
-# add commandline parameters to accept user selected ports
+import sys
 
 class User():
 	def __init__(self,handle,address):
@@ -25,17 +22,17 @@ class Delete:
 
 following = [] #Lists of users that client user is foloowing
 
-serverIP = gethostbyname(getfqdn()) #gethostbyname(getfqdn()) #gethostbyname(gethostname()) used for localhost. For other uses put server IP
-serverPort = 28000
+serverIP = sys.argv[1] # take in command server ip
+serverPort = int(sys.argv[2]) # take in command line port
 
 clientSocket = socket(AF_INET, SOCK_DGRAM)
-clientPort = 28001 # add commandline parameters to accept user selected ports
+clientPort = int(sys.argv[3]) # take in command line port
 clientIP = gethostbyname(getfqdn())
 clientAddr = (clientIP,clientPort)
 clientSocket.bind(clientAddr)
 
 listenSocket = socket(AF_INET, SOCK_DGRAM)
-listenPort = 28002 # add commandline parameters to accept user selected ports
+listenPort = int(sys.argv[4]) # take in command line port
 listenIP = gethostbyname(getfqdn())
 listenAddr = (listenIP, listenPort)
 listenSocket.bind(listenAddr)
