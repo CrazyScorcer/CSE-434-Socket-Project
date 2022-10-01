@@ -1,4 +1,3 @@
-from http import client
 from socket import *
 from collections import OrderedDict
 import pickle
@@ -35,7 +34,7 @@ serverAddress = (serverIP,serverPort)
 serverSocket.bind(serverAddress)
 
 def serverStart():
-    print("Server Started")
+    print(f"{serverAddress}:Server Started")
     while True:
         #waits for a client to send packet
         clientData, clientAddress = serverSocket.recvfrom(2048)
@@ -117,10 +116,10 @@ def exitCode(exitCode,clientAddress):
     #find index of user to exit
     deleteList = userLists.index(next(x for x in userLists if exitCode.name == x.handle))
     #removes user from other user's clientside following list
-    for follower in userFollowers[exitCode.name]:
-        listenAddress = next(x for x in userLists if follower == x.handle).address
-        deleteMsg = pickle.dumps(Delete(exitCode.name))
-        serverSocket.sendto(deleteMsg, listenAddress)
+#    for follower in userFollowers[exitCode.name]:
+#        listenAddress = next(x for x in userLists if follower == x.handle).address
+#        deleteMsg = pickle.dumps(Delete(exitCode.name))
+#        serverSocket.sendto(deleteMsg, listenAddress)
     userFollowers.pop(exitCode.name)
     userLists.pop(deleteList)
     print('User following list after receiving exit request ', userFollowers)
