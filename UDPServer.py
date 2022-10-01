@@ -1,4 +1,3 @@
-from http import client
 from socket import *
 from collections import OrderedDict
 import pickle
@@ -35,7 +34,7 @@ serverAddress = (serverIP,serverPort)
 serverSocket.bind(serverAddress)
 
 def serverStart():
-    print("Server Started")
+    print(f"{serverAddress}:Server Started")
     while True:
         #waits for a client to send packet
         clientData, clientAddress = serverSocket.recvfrom(2048)

@@ -1,6 +1,5 @@
 from socket import *
 import pickle
-from sre_constants import SUCCESS
 import threading
 from collections import OrderedDict
 
@@ -26,7 +25,7 @@ class Delete:
 
 following = [] #Lists of users that client user is foloowing
 
-serverIP = "10.120.70.145" #gethostbyname(getfqdn()) #gethostbyname(gethostname()) used for localhost. For other uses put server IP
+serverIP = gethostbyname(getfqdn()) #gethostbyname(getfqdn()) #gethostbyname(gethostname()) used for localhost. For other uses put server IP
 serverPort = 28000
 
 clientSocket = socket(AF_INET, SOCK_DGRAM)
@@ -113,7 +112,7 @@ def clientStart():
 			finalMsg, serverAddress = clientSocket.recvfrom(2048)
 			print(finalMsg.decode())
 			break
-		elif userInput == _:
+		else:
 			print("Invalid Command")
 #2nd thread function to listen for when a user exits
 def listening():
