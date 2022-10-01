@@ -126,8 +126,8 @@ def listenChange():
 				if followingUser == serverUsers.handle:
 					inUserLists = True
 					break
-			if not inUserLists:
-				following.remove(followingUser)
+		if not inUserLists:
+			following.remove(followingUser)
 
 #2nd thread function to listen for when a user exits
 #def listening():
