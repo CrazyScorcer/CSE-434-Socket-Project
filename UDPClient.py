@@ -31,11 +31,11 @@ clientIP = gethostbyname(getfqdn())
 clientAddr = (clientIP,clientPort)
 clientSocket.bind(clientAddr)
 
-listenSocket = socket(AF_INET, SOCK_DGRAM)
-listenPort = int(sys.argv[4]) # take in command line port
-listenIP = gethostbyname(getfqdn())
-listenAddr = (listenIP, listenPort)
-listenSocket.bind(listenAddr)
+#listenSocket = socket(AF_INET, SOCK_DGRAM)
+#listenPort = int(sys.argv[4]) # take in command line port
+#listenIP = gethostbyname(getfqdn())
+#listenAddr = (listenIP, listenPort)
+#listenSocket.bind(listenAddr)
 
 def clientStart():
 	userHandle = input("Insert Handle: ")
@@ -55,8 +55,10 @@ def clientStart():
 		userHandle = input("Handle Already Exists. Try Again. ")
 	while True:
 		clientData = []
+		listenChange()
 		userInput = input("Type command: ")
 		clientData.append(userInput)
+		listenChange()
 		if userInput == "Query Handles":
 			#query the server for handles and returns list of handles currently on the server	
 			clientSocket.sendto(pickle.dumps(clientData), serverAddress)
@@ -81,7 +83,7 @@ def clientStart():
 			clientSocket.sendto(pickle.dumps(clientData),(serverIP, serverPort))
 			#waits for server response
 			serverData, serverAddress = clientSocket.recvfrom(2048)
-			print(serverData)
+			print(serverData.decode())
 			if serverData.decode() == "SUCCESS":
 				print(userHandle , ' is now following ', followTarget)
 				print("New following list: ", following)
@@ -111,23 +113,39 @@ def clientStart():
 			break
 		else:
 			print("Invalid Command")
+#temporary function so that client and server share the same info
+def listenChange():
+	clientData = ["Query Handles"]
+	clientSocket.sendto(pickle.dumps(clientData),(serverIP, serverPort))
+	serverData, serverAddress = clientSocket.recvfrom(2048)
+	serverData = pickle.loads(serverData)
+	for followingUser in following:
+		inUserLists = False
+		if len(serverData[1]) != 0:
+			for serverUsers in serverData[1]:
+				if followingUser == serverUsers.handle:
+					inUserLists = True
+					break
+			if not inUserLists:
+				following.remove(followingUser)
+
 #2nd thread function to listen for when a user exits
-def listening():
-	while True:
-		message, serverAddress = listenSocket.recvfrom(2048)
-		deleteMsg = pickle.loads(message)
-		print('server sent a msg to ', deleteMsg.follower, ' to go and delete ', deleteMsg.name, ' but not rlly tho bc this is going to just one port but at least the delete msg is correct')
+#def listening():
+#	while True:
+#		message, serverAddress = listenSocket.recvfrom(2048)
+#		deleteMsg = pickle.loads(message)
+#		print('server sent a msg to ', deleteMsg.follower, ' to go and delete ', deleteMsg.name, ' but not rlly tho bc this is going to just one port but at least the delete msg is correct')
 
 
 #clientSocket.close()
 cmdPort = threading.Thread(target=clientStart, args=())
 cmdPort.start()
 
-listeningPort = threading.Thread(target=listening, args=(), daemon=True)
-listeningPort.start()
+#listeningPort = threading.Thread(target=listening, args=(), daemon=True)
+#listeningPort.start()
 
 cmdPort.join()
 clientSocket.close()
-listenSocket.close()
+#listenSocket.close()
 
 print('client terminated')
