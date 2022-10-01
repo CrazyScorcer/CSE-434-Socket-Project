@@ -1,7 +1,9 @@
 from http import client
 from socket import *
+from collections import OrderedDict
 import pickle
 import threading
+
 #implement userLists object sort
 #implement userLists object sort
 #implement userLists object sort
@@ -19,9 +21,12 @@ class ExitCode:
 	def __init__(self, name, follow):
 		self.name = name
 		self.follow = follow
-    
+class Delete:
+	def __init__(self, delete):
+		self.delete = delete
+  
 userLists = [] # = registered = ['A', 'B', 'C']
-userFollowers = [] # list containing lists for each user's followers
+userFollowers = {} # list containing lists for each user's followers
  
 serverSocket = socket(AF_INET, SOCK_DGRAM)
 serverIP = gethostbyname(getfqdn()) #gethostbyname(gethostname()) used for localhost. For other uses put server IP
@@ -35,18 +40,17 @@ def serverStart():
         #waits for a client to send packet
         clientData, clientAddress = serverSocket.recvfrom(2048)
         clientData = pickle.loads(clientData)
-        match clientData[0]:
-            case "Register":
+        if clientData[0] == "Register":
                 clientRegister(clientData[1],clientAddress)
-            case "Query Handles":
+        elif clientData[0] == "Query Handles":
                 queryHandles(clientAddress)
-            case "Follow":
+        elif clientData[0] == "Follow":
                 followHandle(clientData[1],clientAddress)
-            case "Drop":
+        elif clientData[0] == "Drop":
                 dropHandle(clientData[1],clientAddress)
-            case "Tweet":
+        elif clientData[0] == "Tweet":
                 print("Functionallity not implemented yet")
-            case "Exit":
+        elif clientData[0] == "Exit":
                 exitCode(clientData[1],clientAddress)
                 
 #checks if handles exists on the server then registers if it doesn't, otherwise send failure to client for new handle
@@ -58,6 +62,9 @@ def clientRegister(handle, clientAddress):
             serverSocket.sendto(message.encode(), clientAddress)
             return
     userLists.append(User(handle, clientAddress))
+    global userFollowers
+    userFollowers[handle] = []
+    userFollowers = OrderedDict(sorted(userFollowers.items(), key=lambda k:k[0]))
     print(isinstance(userLists[0],User))
     print("User has been Registered:", handle, clientAddress)
     message = "Success"
@@ -71,14 +78,14 @@ def queryHandles(clientAddress):
 
 def followHandle(req,clientAddress):
     #finds the index of target to be followed
-    index = userLists.index(next(x for x in userLists if req.target == x.handle))
     #attempts to find user in following list associate with user
+    global userFollowers
     try:
-        duplicate = userFollowers[index].index(req.user)
+        duplicate = userFollowers[req.target].index(req.user)
     #if user is not following then add to list and sort
     except ValueError:
-        userFollowers[index].append(req.user)
-        userFollowers[index].sort()
+        userFollowers[req.target].append(req.user)
+        userFollowers[req.target].sort()
         returnMsg = 'SUCCESS'
     print('User following list after receiving follow request', userFollowers) 
     if returnMsg != 'SUCCESS':
@@ -87,11 +94,11 @@ def followHandle(req,clientAddress):
    
 def dropHandle(req,clientAddress):
     #finds the index of target to be droped
-    index = userLists.index(next(x for x in userLists if req.target == x.handle)) 
     #attempts to remove user in following list associate with user
+    global userFollowers
     try:
-        userFollowers[index].remove(req.user)
-        userFollowers[index].sort()
+        userFollowers[req.target].remove(req.user)
+        userFollowers[req.target].sort()
         returnMsg = 'SUCCESS'
     #if user is not following then print message
     except ValueError:
@@ -103,18 +110,18 @@ def dropHandle(req,clientAddress):
 
 def exitCode(exitCode,clientAddress):
     #removes user from other user's follower list
+    global userFollowers
     for following in exitCode.follow:
-        index = userLists.index(next(x for x in userLists if following == x.handle))
-        userFollowers[index].remove(exitCode.name)
-        userFollowers[index].sort()
+        userFollowers[following].remove(exitCode.name)
+        userFollowers[following].sort()
     #find index of user to exit
     deleteList = userLists.index(next(x for x in userLists if exitCode.name == x.handle))
     #removes user from other user's clientside following list
-    for follower in userFollowers[deleteList]:
+    for follower in userFollowers[exitCode.name]:
         listenAddress = next(x for x in userLists if follower == x.handle).address
-        deleteMsg = Req(exitCode.name, follower, 'delete')
+        deleteMsg = pickle.dumps(Delete(exitCode.name))
         serverSocket.sendto(deleteMsg, listenAddress)
-    userFollowers.pop(deleteList)
+    userFollowers.pop(exitCode.name)
     userLists.pop(deleteList)
     print('User following list after receiving exit request ', userFollowers)
     finalMsg = 'User successfully removed from server'
