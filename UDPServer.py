@@ -54,6 +54,7 @@ def serverStart():
                 
 #checks if handles exists on the server then registers if it doesn't, otherwise send failure to client for new handle
 def clientRegister(handle, clientAddress):
+    print("Server now handling registration")
     for x in userLists:
         if x.handle == handle:
             print("Handle already Exists failed to Registered")
@@ -70,14 +71,17 @@ def clientRegister(handle, clientAddress):
     serverSocket.sendto(message.encode(), clientAddress)
 #stores the number of users and the lists of current users in a list to send over
 def queryHandles(clientAddress):
+    print("Server has received query request. Now querying")
     serverData = []
     serverData.append(len(userLists))
     serverData.append(userLists)
+    print("Server is done querying")
     serverSocket.sendto(pickle.dumps(serverData), clientAddress)
 
 def followHandle(req,clientAddress):
     #finds the index of target to be followed
     #attempts to find user in following list associate with user
+    print("Server has received follow request")
     global userFollowers
     try:
         duplicate = userFollowers[req.target].index(req.user)
@@ -94,6 +98,7 @@ def followHandle(req,clientAddress):
 def dropHandle(req,clientAddress):
     #finds the index of target to be droped
     #attempts to remove user in following list associate with user
+    print("Server has received drop request")
     global userFollowers
     try:
         userFollowers[req.target].remove(req.user)
@@ -109,11 +114,14 @@ def dropHandle(req,clientAddress):
 
 def exitCode(exitCode,clientAddress):
     #removes user from other user's follower list
+    print("Server has received exit request")
+    print("Removing user from other's follower list")
     global userFollowers
     for following in exitCode.follow:
         userFollowers[following].remove(exitCode.name)
         userFollowers[following].sort()
     #find index of user to exit
+    print("Removing user's own follower list")
     deleteList = userLists.index(next(x for x in userLists if exitCode.name == x.handle))
     #removes user from other user's clientside following list
 #    for follower in userFollowers[exitCode.name]:

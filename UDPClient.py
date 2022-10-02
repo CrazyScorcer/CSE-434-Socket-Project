@@ -44,6 +44,8 @@ def clientStart():
 		while len(userHandle) > 15:
 			userHandle = input("Handle too long. Try Again. ")
 		#sends handle to server to register
+		print("Client sent register command")
+		print("Waiting for server...")
 		clientData = ["Register" , userHandle]
 		clientSocket.sendto(pickle.dumps(clientData),(serverIP, serverPort))
 		serverData, serverAddress = clientSocket.recvfrom(2048)
@@ -61,9 +63,12 @@ def clientStart():
 		listenChange()
 		if userInput == "Query Handles":
 			#query the server for handles and returns list of handles currently on the server	
+			print("Sent query request to server")
+			print("Waiting for server...")
 			clientSocket.sendto(pickle.dumps(clientData), serverAddress)
 			serverData, serverAddress = clientSocket.recvfrom(2048)
 			serverData = pickle.loads(serverData)
+			print("Server has sent data back. Loading...")
 			print("Total Users: ", serverData[0])
 			userList = serverData[1]
 			for x in userList:
@@ -80,6 +85,8 @@ def clientStart():
 				following.append(followTarget)
 				following.sort()
 
+			print("Sending follow request to server")
+			print("Waiting for server...")
 			clientSocket.sendto(pickle.dumps(clientData),(serverIP, serverPort))
 			#waits for server response
 			serverData, serverAddress = clientSocket.recvfrom(2048)
@@ -97,6 +104,8 @@ def clientStart():
 				exists = following.remove(dropTarget)
 				following.sort()
 				print('New following list: ', following)
+				print("Sending drop request to server")
+				print("Waiting for server")
 				clientSocket.sendto(pickle.dumps(clientData), (serverIP, serverPort))
 				serverData, serverAddress = clientSocket.recvfrom(2048)
 				print(serverData.decode())
@@ -107,7 +116,9 @@ def clientStart():
 		elif userInput == "Exit":
 		#sends exit request to server
 			clientData.append(ExitCode(userHandle , following))
+			print("Sending exit request to server")
 			clientSocket.sendto(pickle.dumps(clientData), (serverIP, serverPort))
+			print("Waiting for server")
 			finalMsg, serverAddress = clientSocket.recvfrom(2048)
 			print(finalMsg.decode())
 			break
@@ -115,6 +126,8 @@ def clientStart():
 			print("Invalid Command")
 #temporary function so that client and server share the same info
 def listenChange():
+	print("Checking to make sure following list is up to date with server")
+	print("Sending query requests")
 	clientData = ["Query Handles"]
 	clientSocket.sendto(pickle.dumps(clientData),(serverIP, serverPort))
 	serverData, serverAddress = clientSocket.recvfrom(2048)
@@ -128,7 +141,7 @@ def listenChange():
 					break
 		if not inUserLists:
 			following.remove(followingUser)
-
+	print("Update complete")
 #2nd thread function to listen for when a user exits
 #def listening():
 #	while True:
