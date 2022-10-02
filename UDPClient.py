@@ -31,12 +31,6 @@ clientIP = gethostbyname(getfqdn())
 clientAddr = (clientIP,clientPort)
 clientSocket.bind(clientAddr)
 
-#listenSocket = socket(AF_INET, SOCK_DGRAM)
-#listenPort = int(sys.argv[4]) # take in command line port
-#listenIP = gethostbyname(getfqdn())
-#listenAddr = (listenIP, listenPort)
-#listenSocket.bind(listenAddr)
-
 def clientStart():
 	userHandle = input("Insert Handle: ")
 	while True:
@@ -142,23 +136,11 @@ def listenChange():
 		if not inUserLists:
 			following.remove(followingUser)
 	print("Update complete")
-#2nd thread function to listen for when a user exits
-#def listening():
-#	while True:
-#		message, serverAddress = listenSocket.recvfrom(2048)
-#		deleteMsg = pickle.loads(message)
-#		print('server sent a msg to ', deleteMsg.follower, ' to go and delete ', deleteMsg.name, ' but not rlly tho bc this is going to just one port but at least the delete msg is correct')
 
-
-#clientSocket.close()
 cmdPort = threading.Thread(target=clientStart, args=())
 cmdPort.start()
 
-#listeningPort = threading.Thread(target=listening, args=(), daemon=True)
-#listeningPort.start()
-
 cmdPort.join()
 clientSocket.close()
-#listenSocket.close()
 
 print('client terminated')
