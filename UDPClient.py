@@ -31,6 +31,12 @@ clientIP = gethostbyname(getfqdn())
 clientAddr = (clientIP,clientPort)
 clientSocket.bind(clientAddr)
 
+rightSocket = socket(AF_INET, SOCK_DGRAM)
+rightPort = int(sys.argv[4])
+rightIP = gethostbyname(getfqdn())
+rightAddress = (rightIP, rightPort)
+rightSocket.bind(rightAddress)
+
 def clientStart():
 	userHandle = input("Insert Handle: ")
 	while True:
@@ -40,9 +46,11 @@ def clientStart():
 		#sends handle to server to register
 		print("Client sent register command")
 		print("Waiting for server...")
-		clientData = ["Register" , userHandle]
+		clientData = ["Register" , userHandle, rightAddress]
 		clientSocket.sendto(pickle.dumps(clientData),(serverIP, serverPort))
 		serverData, serverAddress = clientSocket.recvfrom(2048)
+		
+		
 		#if the handle doesn't exist, move to ask commands from user
 		if (serverData.decode() == "Success"):
 			print("Success")
@@ -51,10 +59,10 @@ def clientStart():
 		userHandle = input("Handle Already Exists. Try Again. ")
 	while True:
 		clientData = []
-		listenChange()
+		#listenChange()
 		userInput = input("Type command: ")
 		clientData.append(userInput)
-		listenChange()
+		#listenChange()
 		if userInput == "Query Handles":
 			#query the server for handles and returns list of handles currently on the server	
 			print("Sent query request to server")
@@ -120,24 +128,22 @@ def clientStart():
 			print("Invalid Command")
 #temporary function so that client and server share the same info
 def listenChange():
-	print("Checking to make sure following list is up to date with server")
-	print("Sending query requests")
-	clientData = ["Query Handles"]
-	clientSocket.sendto(pickle.dumps(clientData),(serverIP, serverPort))
-	serverData, serverAddress = clientSocket.recvfrom(2048)
-	serverData = pickle.loads(serverData)
-	for followingUser in following:
-		inUserLists = False
-		if len(serverData[1]) != 0:
-			for serverUsers in serverData[1]:
-				if followingUser == serverUsers.handle:
-					inUserLists = True
-					break
-		if not inUserLists:
-			following.remove(followingUser)
-	print("Update complete")
+	while True:
+		#print("right is waiting")
+		serverMsg, serverAddr = rightSocket.recvfrom(2048)
+		serverMsg = pickle.loads(serverMsg)
+		if type(serverMsg) is Delete:
+			following.remove(serverMsg.delete)
+			print("\nfollowing is now", following)
+			print("Type command: ")
 
+
+
+rightListening = threading.Thread(target=listenChange, args=(), daemon=True)
+rightListening.start()
+print("right is now listening")
 cmdPort = threading.Thread(target=clientStart, args=())
+print("starting cmd")
 cmdPort.start()
 
 cmdPort.join()
