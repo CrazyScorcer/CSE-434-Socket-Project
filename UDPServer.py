@@ -26,7 +26,7 @@ userFollowers = {} # list containing lists for each user's followers
  
 serverSocket = socket(AF_INET, SOCK_DGRAM)
 serverIP = gethostbyname(getfqdn()) #gethostbyname(gethostname()) used for localhost. For other uses put server IP
-serverPort = 28000
+serverPort = 28500
 serverAddress = (serverIP,serverPort)
 serverSocket.bind(serverAddress)
 
@@ -37,7 +37,7 @@ def serverStart():
         clientData, clientAddress = serverSocket.recvfrom(2048)
         clientData = pickle.loads(clientData)
         if clientData[0] == "Register":
-                clientRegister(clientData[1],clientAddress)
+                clientRegister(clientData[1],clientAddress, clientData[2])
         elif clientData[0] == "Query Handles":
                 queryHandles(clientAddress)
         elif clientData[0] == "Follow":
@@ -50,7 +50,7 @@ def serverStart():
                 exitCode(clientData[1],clientAddress)
                 
 #checks if handles exists on the server then registers if it doesn't, otherwise send failure to client for new handle
-def clientRegister(handle, clientAddress):
+def clientRegister(handle, clientAddress, secondAddress):
     print("Server now handling registration")
     for x in userLists:
         if x.handle == handle:
@@ -62,8 +62,11 @@ def clientRegister(handle, clientAddress):
     global userFollowers
     userFollowers[handle] = []
     userFollowers = OrderedDict(sorted(userFollowers.items(), key=lambda k:k[0]))
-    print(isinstance(userLists[0],User))
+    #print(isinstance(userLists[0],User))
     print("User has been Registered:", handle, clientAddress)
+    
+    userLists.append(User(handle, secondAddress))
+    print("Second port has been registered:", handle, secondAddress) 
     message = "Success"
     serverSocket.sendto(message.encode(), clientAddress)
 #stores the number of users and the lists of current users in a list to send over
@@ -120,7 +123,15 @@ def exitCode(exitCode,clientAddress):
     #find index of user to exit
     print("Removing user's own follower list")
     deleteList = userLists.index(next(x for x in userLists if exitCode.name == x.handle))
+    
+    for follower in userFollowers[exitCode.name]:
+        followerIndex = userLists.index(next(x for x in userLists if follower == x.handle))
+        followerIndex = followerIndex+1
+        deleteMsg = Delete(exitCode.name)
+        serverSocket.sendto(pickle.dumps(deleteMsg), userLists[followerIndex].address)
+
     userFollowers.pop(exitCode.name)
+    userLists.pop(deleteList+1)
     userLists.pop(deleteList)
     print('User following list after receiving exit request ', userFollowers)
     finalMsg = 'User successfully removed from server'
