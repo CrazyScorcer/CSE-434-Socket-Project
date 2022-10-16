@@ -5,9 +5,10 @@ import threading
 import sys
 
 class User():
-	def __init__(self,handle,address):
+	def __init__(self,handle,mainAddress,secondAddress):
 		self.handle = handle
-		self.address = address
+		self.mainAddress = mainAddress
+		self.secondAddress = secondAddress
 class Req:
 	def __init__(self, user, target):
 		self.user = user

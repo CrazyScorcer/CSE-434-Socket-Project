@@ -4,9 +4,10 @@ import pickle
 import threading
 
 class User():
-    def __init__(self,handle,address):
+    def __init__(self,handle,mainAddress,secondAddress):
         self.handle = handle
-        self.address = address
+        self.mainAddress = mainAddress
+        self.secondAddress = secondAddress
 class Req:
 	def __init__(self, user, target, reqType):
 		self.user = user
@@ -58,15 +59,15 @@ def clientRegister(handle, clientAddress, secondAddress):
             message = "Failure"
             serverSocket.sendto(message.encode(), clientAddress)
             return
-    userLists.append(User(handle, clientAddress))
+    userLists.append(User(handle, clientAddress, secondAddress))
     global userFollowers
     userFollowers[handle] = []
     userFollowers = OrderedDict(sorted(userFollowers.items(), key=lambda k:k[0]))
     #print(isinstance(userLists[0],User))
     print("User has been Registered:", handle, clientAddress)
     
-    userLists.append(User(handle, secondAddress))
-    print("Second port has been registered:", handle, secondAddress) 
+    #userLists.append(User(handle, secondAddress))
+    #print("Second port has been registered:", handle, secondAddress) 
     message = "Success"
     serverSocket.sendto(message.encode(), clientAddress)
 #stores the number of users and the lists of current users in a list to send over
@@ -126,12 +127,12 @@ def exitCode(exitCode,clientAddress):
     
     for follower in userFollowers[exitCode.name]:
         followerIndex = userLists.index(next(x for x in userLists if follower == x.handle))
-        followerIndex = followerIndex+1
+        #followerIndex = followerIndex+1
         deleteMsg = Delete(exitCode.name)
         serverSocket.sendto(pickle.dumps(deleteMsg), userLists[followerIndex].address)
 
     userFollowers.pop(exitCode.name)
-    userLists.pop(deleteList+1)
+    #userLists.pop(deleteList+1)
     userLists.pop(deleteList)
     print('User following list after receiving exit request ', userFollowers)
     finalMsg = 'User successfully removed from server'
