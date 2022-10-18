@@ -31,13 +31,30 @@ serverPort = 28500
 serverAddress = (serverIP,serverPort)
 serverSocket.bind(serverAddress)
 
+ignoreAll = False
+
 def serverStart():
     print(f"{serverAddress}:Server Started")
+    global ignoreAll
     while True:
         #waits for a client to send packet
         clientData, clientAddress = serverSocket.recvfrom(2048)
         clientData = pickle.loads(clientData)
-        if clientData[0] == "Register":
+        
+        if ignoreAll :
+                if clientData[0] == "Query Handles":
+                        unavailMsg = []
+                        unavailMsg.append(-1)
+                        unavailMsg.append([])
+                        serverSocket.sendto(pickle.dumps(unavailMsg), clientAddress)	
+                
+                elif clientData[0] == "End Tweet":
+                        print("Tweet has ended. Server will now accept commands again")
+                        ignoreAll = False
+                else:	
+                        unavailMsg = "Server is not currently accepting any commands"
+                        serverSocket.sendto(unavailMsg.encode(), clientAddress)
+        elif clientData[0] == "Register":
                 clientRegister(clientData[1],clientAddress, clientData[2])
         elif clientData[0] == "Query Handles":
                 queryHandles(clientAddress)
@@ -46,7 +63,7 @@ def serverStart():
         elif clientData[0] == "Drop":
                 dropHandle(clientData[1],clientAddress)
         elif clientData[0] == "Tweet":
-                print("Functionallity not implemented yet")
+                tweetReq(clientData[1])
         elif clientData[0] == "Exit":
                 exitCode(clientData[1],clientAddress)
                 
@@ -64,7 +81,7 @@ def clientRegister(handle, clientAddress, secondAddress):
     userFollowers[handle] = []
     userFollowers = OrderedDict(sorted(userFollowers.items(), key=lambda k:k[0]))
     #print(isinstance(userLists[0],User))
-    print("User has been Registered:", handle, clientAddress)
+    print("User has been Registered:", handle, clientAddress, secondAddress)
     
     #userLists.append(User(handle, secondAddress))
     #print("Second port has been registered:", handle, secondAddress) 
@@ -113,6 +130,23 @@ def dropHandle(req,clientAddress):
         returnMsg = 'FAILURE'
     serverSocket.sendto(returnMsg.encode(), clientAddress)
 
+
+def tweetReq(userHandle):
+    #returns list of follower addresses and ports
+    tweetList = []
+    userIndex = userLists.index(next(x for x in userLists if userHandle == x.handle))
+    tweetList.append(userLists[userIndex])
+    for follower in userFollowers[userHandle]:
+        followerIndex = userLists.index(next(x for x in userLists if follower == x.handle))
+        tweetList.append(userLists[followerIndex])
+    serverSocket.sendto(pickle.dumps(tweetList), userLists[userIndex].mainAddress)
+    global ignoreAll
+    ignoreAll = True
+
+
+
+
+
 def exitCode(exitCode,clientAddress):
     #removes user from other user's follower list
     print("Server has received exit request")
@@ -129,7 +163,7 @@ def exitCode(exitCode,clientAddress):
         followerIndex = userLists.index(next(x for x in userLists if follower == x.handle))
         #followerIndex = followerIndex+1
         deleteMsg = Delete(exitCode.name)
-        serverSocket.sendto(pickle.dumps(deleteMsg), userLists[followerIndex].address)
+        serverSocket.sendto(pickle.dumps(deleteMsg), userLists[followerIndex].secondAddress)
 
     userFollowers.pop(exitCode.name)
     #userLists.pop(deleteList+1)

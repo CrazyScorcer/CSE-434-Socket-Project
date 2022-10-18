@@ -21,6 +21,17 @@ class Delete:
 	def __init__(self, delete):
 		self.delete = delete
 
+class SetUp:
+	def __init__(self, sender, left, right):
+		self.sender = sender
+		self.left = left
+		self.right = right	
+
+class Tweet:
+	def __init__(self, sender, tweet):
+		self.sender = sender
+		self.tweet = tweet
+
 following = [] #Lists of users that client user is foloowing
 
 serverIP = sys.argv[1] # take in command server ip
@@ -38,7 +49,14 @@ rightIP = gethostbyname(getfqdn())
 rightAddress = (rightIP, rightPort)
 rightSocket.bind(rightAddress)
 
+ownFollowerRing = []
+otherRings = []
+leftN = User("", clientAddr, rightAddress)
+rightN = User("", clientAddr, rightAddress)
+userHandle = ""
+
 def clientStart():
+	global userHandle
 	userHandle = input("Insert Handle: ")
 	while True:
 		#check to see if handle is longer than 15 characters
@@ -72,11 +90,13 @@ def clientStart():
 			serverData, serverAddress = clientSocket.recvfrom(2048)
 			serverData = pickle.loads(serverData)
 			print("Server has sent data back. Loading...")
-			print("Total Users: ", serverData[0])
-			userList = serverData[1]
-			for x in userList:
-				print(x.handle)
-			
+			if serverData[0] != -1:
+				print("Total Users: ", serverData[0])
+				userList = serverData[1]
+				for x in userList:
+					print(x.handle)
+			else:
+				print("Server is not currently accepting any commands")
 		elif userInput == "Follow":
 			followTarget = input('Please type the name of the person you want to follow: ')
 			clientData.append(Req(userHandle, followTarget))
@@ -115,7 +135,33 @@ def clientStart():
 			except ValueError:
 				print('You are not following that person')
 		elif userInput == "Tweet":
-			print("Functionallity not implemented yet")
+			tweet = input("Type your tweet: ")
+			while len(tweet) > 140:
+				tweet = input("Tweet too long. Try again. ")
+			clientData.append(userHandle)
+			clientSocket.sendto(pickle.dumps(clientData), (serverIP, serverPort))
+			serverData, serverAddress = clientSocket.recvfrom(2048)
+			serverData = pickle.loads(serverData)
+			ownFollowerRing = []
+			prev = 0
+			after = 2
+			for follower in serverData:
+				if follower.handle != userHandle:
+					ownFollowerRing.append(follower.handle)
+					leftNeighbor = serverData[prev]
+					if after != len(serverData):
+						rightNeighbor = serverData[after]
+						after = after + 1
+					else:
+						rightNeighbor = serverData[0]
+						ownSetup = SetUp(userHandle, follower, serverData[0])
+						clientSocket.sendto(pickle.dumps(ownSetup), rightAddress)
+					prev = prev + 1
+					setup = SetUp(userHandle, leftNeighbor, rightNeighbor)
+					clientSocket.sendto(pickle.dumps(setup), serverData[prev].secondAddress)		
+			
+			tweetMsg = Tweet(userHandle, tweet)
+			clientSocket.sendto(pickle.dumps(tweetMsg), serverData[1].secondAddress)	
 		elif userInput == "Exit":
 		#sends exit request to server
 			clientData.append(ExitCode(userHandle , following))
@@ -127,19 +173,35 @@ def clientStart():
 			break
 		else:
 			print("Invalid Command")
+
 #temporary function so that client and server share the same info
 def listenChange():
 	while True:
 		#print("right is waiting")
-		serverMsg, serverAddr = rightSocket.recvfrom(2048)
-		serverMsg = pickle.loads(serverMsg)
-		if type(serverMsg) is Delete:
-			following.remove(serverMsg.delete)
+		receivedMsg, senderAddr = rightSocket.recvfrom(2048)
+		receivedMsg = pickle.loads(receivedMsg)
+		if type(receivedMsg) is Delete:
+			following.remove(receivedMsg.delete)
 			print("\nfollowing is now", following)
 			print("Type command: ")
 
-
-
+		if type(receivedMsg) is SetUp:
+			otherRings.append(receivedMsg.sender)
+			leftN = receivedMsg.left
+			rightN = receivedMsg.right
+			print("Set up of left and right neighbors complete")
+		if type(receivedMsg) is Tweet:
+			#print(type(leftN))
+			#global leftN
+			print(leftN.handle, " sent a tweet : ", receivedMsg.tweet)		
+			global userHandle
+			if receivedMsg.sender == userHandle:
+				clientData = []
+				clientData.append("End Tweet")
+				rightSocket.sendto(pickle.dumps(clientData), (serverIP, serverPort))
+			else :
+				rightSocket.sendto(pickle.dumps(receivedMsg), rightN.secondAddress)
+			print("Type command: ")
 rightListening = threading.Thread(target=listenChange, args=(), daemon=True)
 rightListening.start()
 print("right is now listening")
