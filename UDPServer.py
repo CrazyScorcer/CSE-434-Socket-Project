@@ -130,22 +130,17 @@ def dropHandle(req,clientAddress):
         returnMsg = 'FAILURE'
     serverSocket.sendto(returnMsg.encode(), clientAddress)
 
-
 def tweetReq(userHandle):
     #returns list of follower addresses and ports
     tweetList = []
     userIndex = userLists.index(next(x for x in userLists if userHandle == x.handle))
-    tweetList.append(userLists[userIndex])
-    for follower in userFollowers[userHandle]:
+    tweetList.append(userLists[userIndex]) # puts tweeter's user object as the first user for logic ring
+    for follower in userFollowers[userHandle]: # adds users who are following the tweeter in logic ring list
         followerIndex = userLists.index(next(x for x in userLists if follower == x.handle))
         tweetList.append(userLists[followerIndex])
     serverSocket.sendto(pickle.dumps(tweetList), userLists[userIndex].mainAddress)
     global ignoreAll
     ignoreAll = True
-
-
-
-
 
 def exitCode(exitCode,clientAddress):
     #removes user from other user's follower list
