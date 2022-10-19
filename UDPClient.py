@@ -97,7 +97,7 @@ def clientStart():
 			#query the server for handles and returns list of handles currently on the server	
 			print("Sent query request to server")
 			print("Waiting for server...")
-			clientSocket.sendto(pickle.dumps(clientData), serverAddress)
+			clientSocket.sendto(pickle.dumps(clientData), (serverIP, serverPort))
 			serverData, serverAddress = clientSocket.recvfrom(2048)
 			serverData = pickle.loads(serverData)
 			print("Server has sent data back. Loading...")
@@ -181,15 +181,17 @@ def clientStart():
 			#removes user from logic rings
 			if (len(logicRings) != 0):
 				for x in logicRings:
-					#fix this!!!!!!!!!!!!!!!!!!!!!!!!!
-					updateData = Update("Change Right", x, logicRings[x].rightUser)
-					clientSocket.sento(pickle.dumps(updateData), logicRings[x].leftUser.listenAddress)
-					recievedMsg, senderAddr = clientSocket.recvfrom(2048)
-					print(recievedMsg)
-					updateData = Update("Change left", x, logicRings[x].leftUser)
-					clientSocket.sento(pickle.dumps(updateData), logicRings[x].rightUser.listenAddress)
-					recievedMsg, senderAddr = clientSocket.recvfrom(2048)
-					print(recievedMsg)
+					if (x == userHandle):
+						continue
+					else:
+						updateData = Update("Change Right", x, logicRings[x].rightUser)
+						clientSocket.sento(pickle.dumps(updateData), logicRings[x].leftUser.listenAddress)
+						recievedMsg, senderAddr = clientSocket.recvfrom(2048)
+						print(recievedMsg)
+						updateData = Update("Change left", x, logicRings[x].leftUser)
+						clientSocket.sento(pickle.dumps(updateData), logicRings[x].rightUser.listenAddress)
+						recievedMsg, senderAddr = clientSocket.recvfrom(2048)
+						print(recievedMsg)
 			
 			clientData.append(ExitCode(userHandle , following))
 			print("Sending exit request to server")
@@ -207,8 +209,10 @@ def listenChange():
 		#print("right is waiting")
 		receivedMsg, senderAddr = listenSocket.recvfrom(2048)
 		receivedMsg = pickle.loads(receivedMsg)
+		#remove users from client's following list and logic rings
 		if type(receivedMsg) is Delete:
 			following.remove(receivedMsg.delete)
+			logicRings.pop(receivedMsg.delete)
 			print("\nfollowing is now", following)
 			print("Type command: ")
 
