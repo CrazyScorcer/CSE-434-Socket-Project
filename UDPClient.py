@@ -154,7 +154,7 @@ def clientStart():
 			serverData, serverAddress = clientSocket.recvfrom(2048)
 			serverData = pickle.loads(serverData) #list of User objects that are following tweeter
 			#construct a follower ring if one hasn't been constructed yet
-			if (userHandle in logicRings):
+			if (userHandle not in logicRings):
 				prev = 0
 				after = 2
 				for follower in serverData: 
@@ -173,7 +173,6 @@ def clientStart():
 						prev = prev + 1
 						setup = SetUp(userHandle, leftNeighbor, rightNeighbor)
 						clientSocket.sendto(pickle.dumps(setup), serverData[prev].listenAddress)		
-			
 			tweetMsg = Tweet(userHandle, tweet)
 			clientSocket.sendto(pickle.dumps(tweetMsg), serverData[1].listenAddress)	
 		#sends exit request to server
@@ -185,11 +184,11 @@ def clientStart():
 						continue
 					else:
 						updateData = Update("Change Right", x, logicRings[x].rightUser)
-						clientSocket.sento(pickle.dumps(updateData), logicRings[x].leftUser.listenAddress)
+						clientSocket.sendto(pickle.dumps(updateData), logicRings[x].leftUser.listenAddress)
 						recievedMsg, senderAddr = clientSocket.recvfrom(2048)
 						print(recievedMsg)
 						updateData = Update("Change left", x, logicRings[x].leftUser)
-						clientSocket.sento(pickle.dumps(updateData), logicRings[x].rightUser.listenAddress)
+						clientSocket.sendto(pickle.dumps(updateData), logicRings[x].rightUser.listenAddress)
 						recievedMsg, senderAddr = clientSocket.recvfrom(2048)
 						print(recievedMsg)
 			
@@ -219,7 +218,11 @@ def listenChange():
 		if type(receivedMsg) is SetUp:
 			userNeighbors = Neighbors(receivedMsg.left, receivedMsg.right)
 			logicRings.update({receivedMsg.sender: userNeighbors})
-			print("Set up of left and right neighbors complete")
+			print("Logic Ring added")
+			print("Current log rings you are apart of now:")
+			for x in logicRings:
+				print(x)
+			print("Type command: ")
 
 		if type(receivedMsg) is Tweet:
 			#print(type(leftN))
@@ -230,17 +233,15 @@ def listenChange():
 				clientData.append("End Tweet")
 				listenSocket.sendto(pickle.dumps(clientData), (serverIP, serverPort))
 			else:
-				print(receivedMsg.sender, f" sent a tweet by{logicRings[receivedMsg.handle].leftNeighbor.handle} : ", receivedMsg.tweet)	
-				listenSocket.sendto(pickle.dumps(receivedMsg), logicRings[receivedMsg.handle].rightNeighbor.listenAddress)
+				print(receivedMsg.sender, f"sent a tweet by {logicRings[receivedMsg.sender].leftUser.handle} :", receivedMsg.tweet)	
+				listenSocket.sendto(pickle.dumps(receivedMsg), logicRings[receivedMsg.sender].rightUser.listenAddress)
 			print("Type command: ")
 			
 		if type(receivedMsg) is Update:
 			if (receivedMsg.side == "Change Right"):
-				logicRings[receivedMsg.ringOwner].rightNeighbor = receivedMsg.newUser
-				listenSocket.sendto(pickle.dumps(f"{userHandle}'s right address changed"), senderAddr)
+				logicRings[receivedMsg.ringOwner].rightUser = receivedMsg.newUser
 			else:
-				logicRings[receivedMsg.ringOwner].leftNeighbor = receivedMsg.newUser
-				listenSocket.sendto(pickle.dumps(f"{userHandle}'s left address changed"), senderAddr)
+				logicRings[receivedMsg.ringOwner].leftUser = receivedMsg.newUser
 			
 startListening = threading.Thread(target=listenChange, args=(), daemon=True)
 startListening.start()
