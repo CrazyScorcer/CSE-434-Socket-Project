@@ -4,10 +4,10 @@ import pickle
 import threading
 
 class User():
-    def __init__(self,handle,mainAddress,secondAddress):
+    def __init__(self,handle,mainAddress,listenAddress):
         self.handle = handle
         self.mainAddress = mainAddress
-        self.secondAddress = secondAddress
+        self.listenAddress = listenAddress
 class Req:
 	def __init__(self, user, target, reqType):
 		self.user = user
@@ -42,33 +42,34 @@ def serverStart():
         clientData = pickle.loads(clientData)
         
         if ignoreAll :
-                if clientData[0] == "Query Handles":
-                        unavailMsg = []
-                        unavailMsg.append(-1)
-                        unavailMsg.append([])
-                        serverSocket.sendto(pickle.dumps(unavailMsg), clientAddress)	
-                
-                elif clientData[0] == "End Tweet":
-                        print("Tweet has ended. Server will now accept commands again")
-                        ignoreAll = False
-                else:	
-                        unavailMsg = "Server is not currently accepting any commands"
-                        serverSocket.sendto(unavailMsg.encode(), clientAddress)
+            if clientData[0] == "Query Handles":
+                unavailMsg = []
+                unavailMsg.append(-1)
+                unavailMsg.append([])
+                serverSocket.sendto(pickle.dumps(unavailMsg), clientAddress)	
+        
+            elif clientData[0] == "End Tweet":
+                print("Tweet has ended. Server will now accept commands again")
+                ignoreAll = False
+            else:	
+                unavailMsg = "Server is not currently accepting any commands"
+                serverSocket.sendto(unavailMsg.encode(), clientAddress)
         elif clientData[0] == "Register":
-                clientRegister(clientData[1],clientAddress, clientData[2])
+            clientRegister(clientData[1],clientAddress, clientData[2])
         elif clientData[0] == "Query Handles":
-                queryHandles(clientAddress)
+            queryHandles(clientAddress)
         elif clientData[0] == "Follow":
-                followHandle(clientData[1],clientAddress)
+            followHandle(clientData[1],clientAddress)
         elif clientData[0] == "Drop":
-                dropHandle(clientData[1],clientAddress)
+            dropHandle(clientData[1],clientAddress)
         elif clientData[0] == "Tweet":
-                tweetReq(clientData[1])
+            tweetReq(clientData[1])
         elif clientData[0] == "Exit":
-                exitCode(clientData[1],clientAddress)
+            exitCode(clientData[1],clientAddress)
+
                 
 #checks if handles exists on the server then registers if it doesn't, otherwise send failure to client for new handle
-def clientRegister(handle, clientAddress, secondAddress):
+def clientRegister(handle, clientAddress, listenAddress):
     print("Server now handling registration")
     for x in userLists:
         if x.handle == handle:
@@ -76,15 +77,15 @@ def clientRegister(handle, clientAddress, secondAddress):
             message = "Failure"
             serverSocket.sendto(message.encode(), clientAddress)
             return
-    userLists.append(User(handle, clientAddress, secondAddress))
+    userLists.append(User(handle, clientAddress, listenAddress))
     global userFollowers
     userFollowers[handle] = []
     userFollowers = OrderedDict(sorted(userFollowers.items(), key=lambda k:k[0]))
     #print(isinstance(userLists[0],User))
-    print("User has been Registered:", handle, clientAddress, secondAddress)
+    print("User has been Registered:", handle, clientAddress, listenAddress)
     
-    #userLists.append(User(handle, secondAddress))
-    #print("Second port has been registered:", handle, secondAddress) 
+    #userLists.append(User(handle, listenAddress))
+    #print("Second port has been registered:", handle, listenAddress) 
     message = "Success"
     serverSocket.sendto(message.encode(), clientAddress)
 #stores the number of users and the lists of current users in a list to send over
@@ -130,22 +131,17 @@ def dropHandle(req,clientAddress):
         returnMsg = 'FAILURE'
     serverSocket.sendto(returnMsg.encode(), clientAddress)
 
-
 def tweetReq(userHandle):
     #returns list of follower addresses and ports
     tweetList = []
     userIndex = userLists.index(next(x for x in userLists if userHandle == x.handle))
-    tweetList.append(userLists[userIndex])
-    for follower in userFollowers[userHandle]:
+    tweetList.append(userLists[userIndex]) # puts tweeter's user object as the first user for logic ring
+    for follower in userFollowers[userHandle]: # adds users who are following the tweeter in logic ring list
         followerIndex = userLists.index(next(x for x in userLists if follower == x.handle))
         tweetList.append(userLists[followerIndex])
     serverSocket.sendto(pickle.dumps(tweetList), userLists[userIndex].mainAddress)
     global ignoreAll
     ignoreAll = True
-
-
-
-
 
 def exitCode(exitCode,clientAddress):
     #removes user from other user's follower list
@@ -157,20 +153,19 @@ def exitCode(exitCode,clientAddress):
         userFollowers[following].sort()
     #find index of user to exit
     print("Removing user's own follower list")
-    deleteList = userLists.index(next(x for x in userLists if exitCode.name == x.handle))
-    
+    deleteListIndex = userLists.index(next(x for x in userLists if exitCode.name == x.handle))
+
     for follower in userFollowers[exitCode.name]:
         followerIndex = userLists.index(next(x for x in userLists if follower == x.handle))
         #followerIndex = followerIndex+1
         deleteMsg = Delete(exitCode.name)
-        serverSocket.sendto(pickle.dumps(deleteMsg), userLists[followerIndex].secondAddress)
+        serverSocket.sendto(pickle.dumps(deleteMsg), userLists[followerIndex].listenAddress)
 
     userFollowers.pop(exitCode.name)
     #userLists.pop(deleteList+1)
-    userLists.pop(deleteList)
+    userLists.pop(deleteListIndex)
     print('User following list after receiving exit request ', userFollowers)
     finalMsg = 'User successfully removed from server'
     serverSocket.sendto(finalMsg.encode(), clientAddress)
-
 
 serverStart()
