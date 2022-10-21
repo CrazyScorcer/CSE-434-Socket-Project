@@ -1,7 +1,6 @@
 from socket import *
 from collections import OrderedDict
 import pickle
-import threading
 
 class User():
     def __init__(self,handle,mainAddress,listenAddress):

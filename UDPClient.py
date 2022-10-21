@@ -254,11 +254,12 @@ def listenChange():
 			print("Current logic rings you are apart of now:")
 			for x in logicRings:
 				print(x)
-			print("Type command: ")
+			if(receivedMsg.sender != userHandle):
+				print("Type command: ")
 
 		if type(receivedMsg) is Tweet:
 				
-			global userHandle
+			#global userHandle
 			if receivedMsg.sender == userHandle:
 				clientData = []
 				clientData.append("End Tweet")
@@ -266,7 +267,7 @@ def listenChange():
 			else:
 				print(receivedMsg.sender, f"sent a tweet by {logicRings[receivedMsg.sender].leftUser.handle} :", receivedMsg.tweet)	
 				listenSocket.sendto(pickle.dumps(receivedMsg), logicRings[receivedMsg.sender].rightUser.listenAddress)
-			print("Type command: ")
+				print("Type command: ")
 			
 		
 startListening = threading.Thread(target=listenChange, args=(), daemon=True)
