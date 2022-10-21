@@ -4,7 +4,7 @@ from collections import OrderedDict
 import pickle
 import threading
 import sys
-from turtle import update
+#from turtle import update
 
 class User():
 	def __init__(self,handle,mainAddress,listenAddress):
@@ -34,12 +34,6 @@ class Tweet:
 		self.sender = sender
 		self.tweet = tweet
 
-class Update:
-	def __init__(self, side, ringOwner, newUser ):
-		self.side = side
-		self.ringOwner = ringOwner
-		self.newUser = newUser
-
 class Neighbors:
 	def __init__(self, leftUser, rightUser ):
 		self.leftUser = leftUser
@@ -65,6 +59,8 @@ listenSocket.bind(listenAddress)
 logicRings = {} #logic rings the user is apart of
 
 userHandle = ""
+
+ownLogicRing = []
 
 def clientStart():
 	global userHandle
@@ -143,8 +139,16 @@ def clientStart():
 				clientSocket.sendto(pickle.dumps(clientData), (serverIP, serverPort))
 				serverData, serverAddress = clientSocket.recvfrom(2048)
 				print(serverData.decode())
+
+				logicRings.pop(dropTarget)
+				print("Removed the person you want to unfollow's logic ring from list of rings")
+				print("Current rings: ")
+				for ring in logicRings:
+					print(ring)
 			except ValueError:
 				print('You are not following that person')
+			except KeyError:
+				print("You were not in that person's logical ring, so no change to logical rings currently in")
 		elif userInput == "Tweet":
 			tweet = input("Type your tweet: ")
 			while len(tweet) > 140:
@@ -153,45 +157,68 @@ def clientStart():
 			clientSocket.sendto(pickle.dumps(clientData), (serverIP, serverPort))
 			serverData, serverAddress = clientSocket.recvfrom(2048)
 			serverData = pickle.loads(serverData) #list of User objects that are following tweeter
+			print("from server, received: ")
+			for data in serverData:
+				print(data.handle)
 			#construct a follower ring if one hasn't been constructed yet
 			if (userHandle not in logicRings):
-				prev = 0
-				after = 2
-				for follower in serverData: 
-					if follower.handle != userHandle:
-						leftNeighbor = serverData[prev]
-						#sets right neighbor as next user in list
-						if after != len(serverData):
-							rightNeighbor = serverData[after]
-							after = after + 1
-						#makes last follower's right neighbor the tweeter
-						else:
-							rightNeighbor = serverData[0]
-							ownSetup = SetUp(userHandle, follower, serverData[1]) # tweeter, left neighbor, right neighbor
-							clientSocket.sendto(pickle.dumps(ownSetup), listenAddress)
-						
-						prev = prev + 1
-						setup = SetUp(userHandle, leftNeighbor, rightNeighbor)
-						clientSocket.sendto(pickle.dumps(setup), serverData[prev].listenAddress)		
-			tweetMsg = Tweet(userHandle, tweet)
-			clientSocket.sendto(pickle.dumps(tweetMsg), serverData[1].listenAddress)	
-		#sends exit request to server
-		elif userInput == "Exit":
-			#removes user from logic rings
-			if (len(logicRings) != 0):
-				for x in logicRings:
-					if (x == userHandle):
-						continue
-					else:
-						updateData = Update("Change Right", x, logicRings[x].rightUser)
-						clientSocket.sendto(pickle.dumps(updateData), logicRings[x].leftUser.listenAddress)
-						recievedMsg, senderAddr = clientSocket.recvfrom(2048)
-						print(recievedMsg)
-						updateData = Update("Change left", x, logicRings[x].leftUser)
-						clientSocket.sendto(pickle.dumps(updateData), logicRings[x].rightUser.listenAddress)
-						recievedMsg, senderAddr = clientSocket.recvfrom(2048)
-						print(recievedMsg)
+				ownLogicRing = serverData
+				print("Created new logic ring ")
+				for ring in ownLogicRing:
+					print(ring.handle)
+			else :
+				i = 0
+				j = 0
 			
+				while (i < len(ownLogicRing)) or (j < len(serverData)):
+					if ( i == len(ownLogicRing)):
+						ownLogicRing.append(serverData[j])
+						j = j+1
+						i = i+1
+					elif (j == len(serverData)):
+						ownLogicRing.pop(i)
+					elif ownLogicRing[i].handle < serverData[j].handle:
+						ownLogicRing.pop(i)
+					elif ownLogicRing[i].handle > serverData[j].handle:
+						ownLogicRing.insert(i, serverData[j])
+					elif (ownLogicRing[i].handle == serverData[j].handle):
+						i = i+1
+						j = j+1
+				print("Updated logic ring to ")
+				for ring in ownLogicRing:
+					print(ring.handle)
+
+			prev = 0
+			after = 2
+			for follower in ownLogicRing: 
+					
+				if follower.handle != userHandle:
+					leftNeighbor = ownLogicRing[prev]
+					#sets right neighbor as next user in list
+					if after != len(ownLogicRing):
+						rightNeighbor = ownLogicRing[after]
+						after = after + 1
+					#makes last follower's right neighbor the tweeter
+					else:
+						rightNeighbor = ownLogicRing[0]
+						ownSetup = SetUp(userHandle, follower, ownLogicRing[1]) # tweeter, left neighbor, right neighbor
+						clientSocket.sendto(pickle.dumps(ownSetup), listenAddress)
+						
+					prev = prev + 1
+					setup = SetUp(userHandle, leftNeighbor, rightNeighbor)
+					clientSocket.sendto(pickle.dumps(setup), ownLogicRing[prev].listenAddress)
+		
+			tweetMsg = Tweet(userHandle, tweet)
+			if (len(ownLogicRing) > 1) :
+				clientSocket.sendto(pickle.dumps(tweetMsg), ownLogicRing[1].listenAddress)	
+				#sends exit request to server
+			else :
+				print("No followers to send tweets to")
+				endTweet = []
+				endTweet.append("End Tweet")
+				clientSocket.sendto(pickle.dumps(endTweet), (serverIP, serverPort))
+		elif userInput == "Exit":
+						
 			clientData.append(ExitCode(userHandle , following))
 			print("Sending exit request to server")
 			clientSocket.sendto(pickle.dumps(clientData), (serverIP, serverPort))
@@ -211,7 +238,12 @@ def listenChange():
 		#remove users from client's following list and logic rings
 		if type(receivedMsg) is Delete:
 			following.remove(receivedMsg.delete)
-			logicRings.pop(receivedMsg.delete)
+			try:
+				logicRings.pop(receivedMsg.delete)
+				print("removed the logic ring related to deleted user")
+			except KeyError:
+				print("was not already in the deleted user's logical ring so no deletion of rings")
+			
 			print("\nfollowing is now", following)
 			print("Type command: ")
 
@@ -219,14 +251,13 @@ def listenChange():
 			userNeighbors = Neighbors(receivedMsg.left, receivedMsg.right)
 			logicRings.update({receivedMsg.sender: userNeighbors})
 			print("Logic Ring added")
-			print("Current log rings you are apart of now:")
+			print("Current logic rings you are apart of now:")
 			for x in logicRings:
 				print(x)
 			print("Type command: ")
 
 		if type(receivedMsg) is Tweet:
-			#print(type(leftN))
-			#global leftN	
+				
 			global userHandle
 			if receivedMsg.sender == userHandle:
 				clientData = []
@@ -237,12 +268,7 @@ def listenChange():
 				listenSocket.sendto(pickle.dumps(receivedMsg), logicRings[receivedMsg.sender].rightUser.listenAddress)
 			print("Type command: ")
 			
-		if type(receivedMsg) is Update:
-			if (receivedMsg.side == "Change Right"):
-				logicRings[receivedMsg.ringOwner].rightUser = receivedMsg.newUser
-			else:
-				logicRings[receivedMsg.ringOwner].leftUser = receivedMsg.newUser
-			
+		
 startListening = threading.Thread(target=listenChange, args=(), daemon=True)
 startListening.start()
 print("right is now listening")
